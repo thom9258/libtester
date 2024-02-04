@@ -1,0 +1,1 @@
+This is a port of the initial implementation "testlib.h" found [[https://github.com/thom9258/The-Spell-Tome/tree/master/Utilities/testlib][here]].

@@ -47,15 +47,14 @@ extern "C" {
 /* ==============================================================================
    Printing functionality start
    =============================================================================*/
+    
 
-#ifndef LIBTESTER_FILE_TARGET 
 #define LIBTESTER_FILE_TARGET stdout
-#endif /*LIBTESTER_FILE_TARGET*/
 
 #ifdef LIBTESTER_NO_COLOR
-#  define LIBTESTER_COLOR(COLOR)
+#  define LIBTESTER_SET_COLOR(COLOR)
 #else /*NOT LIBTESTER_NO_COLOR*/
-#  define LIBTESTER_COLOR(COLOR) fprintf(LIBTESTER_FILE_TARGET, COLOR)
+#  define LIBTESTER_SET_COLOR(COLOR) fprintf(LIBTESTER_FILE_TARGET, COLOR)
 #endif /*LIBTESTER_NO_COLOR*/
 
 #define LIBTESTER_RED     "\033[0;31m"
@@ -64,10 +63,9 @@ extern "C" {
 #define LIBTESTER_RESET   "\033[0m"
 #define LIBTESTER_DEFAULT LIBTESTER_BLUE
 
-#define LIBTESTER_MAX_TESTS 128
-
-#define TPRINT(MSG, ...)                                                     \
-	fprintf(LIBTESTER_FILE_TARGET, MSG, ##__VA_ARGS__)
+#ifndef LIBTESTER_MAX_TESTS
+#  define LIBTESTER_MAX_TESTS 128
+#endif
 
 #define LIBTESTER_FUNCTIONSTRING(FN) (const char*)#FN
 
@@ -88,9 +86,9 @@ extern "C" {
 	_LIBTESTER_TEST_FUNCTION(!(_EXPR), #_EXPR, __LINE__, _MSG)
 
 #define TEST_UNIT(FUNCTION)                                                     \
-	_libtester_pre_function_call(__FILE__, #FUNCTION);                        \
+	_libtester_pre_unit_call(__FILE__, #FUNCTION);                        \
 	FUNCTION;                                                                  \
-	_libtester_post_function_call(#FUNCTION);                                              \
+	_libtester_post_unit_call(#FUNCTION);                                              \
 
 #define LIBTESTER_IS_MEMALIGNED(POINTER, BYTE_COUNT) \
 	( (((uintptr_t)(const void*)(POINTER)) & (BYTE_COUNT-1)) == 0)
@@ -106,6 +104,36 @@ static int      _evaluated_tests_count                = 0;
 static int      _curr_test_errors                     = 0;
 static int      _total_test_errors                    = 0;
 static uint32_t _randseed                             = 2501;
+static FILE*    _filetarget                           = NULL;
+   
+/* ==============================================================================
+   Timer functionality start
+   =============================================================================*/
+
+size_t _lt_printf(const char* fmt, ...) {
+    va_list termlist;
+    va_list filelist;
+
+    va_start(termlist, fmt);
+    if (_filetarget != NULL) {
+        va_copy(filelist, termlist);
+        vfprintf(_filetarget, fmt, filelist);
+        va_end(filelist);
+    }
+
+    vfprintf(stdout, fmt, termlist);
+    va_end(termlist);
+}
+   
+#define lt_print(msg, ...)    _lt_printf(msg, ##__VA_ARGS__)
+#define lt_bgprint(msg, ...)  _lt_printf(LIBTESTER_BLUE  msg LIBTESTER_RESET, ##__VA_ARGS__)
+#define lt_errprint(msg, ...) _lt_printf(LIBTESTER_RED   msg LIBTESTER_RESET, ##__VA_ARGS__)
+#define lt_okprint(msg, ...)  _lt_printf(LIBTESTER_GREEN msg LIBTESTER_RESET, ##__VA_ARGS__)
+ 
+
+/* ==============================================================================
+   Timer functionality start
+   =============================================================================*/
     
 typedef struct {
 	time_t start;
@@ -113,10 +141,6 @@ typedef struct {
 }libtester_timer;
 
 static libtester_timer _timer = {0, 0};
-
-/* ==============================================================================
-   Timer functionality start
-   =============================================================================*/
 
 void
 libtester_timer_start(libtester_timer* _t)
@@ -162,21 +186,23 @@ _LIBTESTER_TEST_FUNCTION(char _result, const char* _expr_str, int _line, const c
 
 	if (_result != 0) {                                                   
 		_curr_test_errors++;
-		LIBTESTER_COLOR(LIBTESTER_RED);
-        TPRINT("[test L%d] ( %s ) failed. %s\n", _line, _expr_str, msg);
+		LIBTESTER_SET_COLOR(LIBTESTER_RED);
+        lt_errprint("[test L%d] ( %s ) failed. %s\n", _line, _expr_str, msg);
+        //TPRINT("[test L%d] ( %s ) failed. %s\n", _line, _expr_str, msg);
 	}                                                                 
 	else {                                                            
-		LIBTESTER_COLOR(LIBTESTER_GREEN);
-        TPRINT("[test L%d] ( %s ) passed. %s\n", _line, _expr_str, msg);
+		LIBTESTER_SET_COLOR(LIBTESTER_GREEN);
+        //TPRINT("[test L%d] ( %s ) passed. %s\n", _line, _expr_str, msg);
+        lt_okprint("[test L%d] ( %s ) passed. %s\n", _line, _expr_str, msg);
 	}                                                                 
-	LIBTESTER_COLOR(LIBTESTER_RESET);
+	LIBTESTER_SET_COLOR(LIBTESTER_RESET);
     return _result;
 }
 
 void
-_libtester_pre_function_call(const char* _file_name, const char* _test_name)
+_libtester_pre_unit_call(const char* _file_name, const char* _test_name)
 /**
- * _libtester_pre_function_call() - Print pre-function formality of testlib.
+ * _libtester_pre_unit_call()- Print status before unit-test.
  * @arg1: File name
  * @arg2: Test function name
  *
@@ -189,24 +215,19 @@ _libtester_pre_function_call(const char* _file_name, const char* _test_name)
 	_curr_test_errors = 0;                     
 	_total_test_errors = 0;                           
 
-	LIBTESTER_COLOR(LIBTESTER_DEFAULT);
-	TPRINT(LIBTESTER_BOLDLINE);
-	TPRINT(LIBTESTER_BOLDLINE);
-	TPRINT("[ TEST %d ]  File %s\n", _evaluated_tests_count, _file_name);
-	LIBTESTER_COLOR(LIBTESTER_RESET);
-	TPRINT("%s:\n", _test_name);
-	LIBTESTER_COLOR(LIBTESTER_DEFAULT);
-	TPRINT(LIBTESTER_BOLDLINE);                                      
-	LIBTESTER_COLOR(LIBTESTER_RESET);
+	lt_bgprint(LIBTESTER_BOLDLINE);
+	lt_bgprint("[ TEST %d ]  File:", _evaluated_tests_count);
+	lt_print(" %s\n", _file_name);
+	lt_bgprint(LIBTESTER_BOLDLINE);                                      
 
 	libtester_timer_reset(&_timer);
 	libtester_timer_start(&_timer);
 }
 
 void
-_libtester_post_function_call(const char* _test_name)
+_libtester_post_unit_call(const char* _test_name)
 /**
- * _libtester_post_function_call() - Print post-function formality of testlib.
+ * _libtester_post_unit_call() - Print status after unit-test.
  *
  * Prints:
  * - Visually eye-catching passed/fail
@@ -215,75 +236,73 @@ _libtester_post_function_call(const char* _test_name)
  */
 {
 	libtester_timer_stop(&_timer);
-
-	char* outcome = NULL;
+	lt_bgprint(LIBTESTER_LINE);                                      
 	_test_names[_evaluated_tests_count] = (char*)_test_name;
+    
 	if (_curr_test_errors == 0) {
-		LIBTESTER_COLOR(LIBTESTER_GREEN);
-		outcome = (char*)"PASSED";
 		_test_statuses[_evaluated_tests_count] = 0;
+        lt_okprint(">>>[[ TEST %d PASSED ]]  ->  (errors=%d/%d, time=%fs)\n",
+                   _evaluated_tests_count,
+                   _curr_test_errors,
+                   _total_test_errors,
+                   _timer.elapsed_sec);
+        lt_bgprint(LIBTESTER_BOLDLINE);
 	}
 	else {
-		LIBTESTER_COLOR(LIBTESTER_RED);
-		outcome = (char*)"FAILED";
 		_test_statuses[_evaluated_tests_count] = 1;
+        lt_errprint(">>>[[ TEST %d FAILED ]]  ->  (errors=%d/%d, time=%fs)\n",
+                    _evaluated_tests_count,
+                    _curr_test_errors,
+                    _total_test_errors,
+                    _timer.elapsed_sec);
+        lt_bgprint(LIBTESTER_BOLDLINE);
 	}
-	TPRINT(LIBTESTER_LINE);                                      
-	TPRINT(">>>[[ TEST %d %s ]]  ->", _evaluated_tests_count, outcome);
-	TPRINT("  (errors=%d/%d, time=%fs)\n",
-	          _curr_test_errors, _total_test_errors,                  
-	          _timer.elapsed_sec);
-	TPRINT(LIBTESTER_BOLDLINE);                                      
-	TPRINT(LIBTESTER_BOLDLINE);                                      
-	LIBTESTER_COLOR(LIBTESTER_RESET);
 	_evaluated_tests_count++;
+    lt_print("\n");
+}
+
+
+void
+tlargs_shift(int* _argc, char*** _argv) {
+    if (_argc == NULL || _argv == NULL)
+        return;
+    *_argv++;
+    *_argc--;
 }
 
 int
-test_summary(void)
+tlcontext_begin(int _argc, char** _argv) {
+
+}
+   
+int
+tlcontext_end(void)
 /**
- * test_summary() - Print summary of all tests.
+ * tlcontext_end() - Print summary of all tests.
  */
 {
 	int i;
     int n_failed = 0;
-	LIBTESTER_COLOR(LIBTESTER_DEFAULT);
-	TPRINT(LIBTESTER_BOLDLINE);
-	TPRINT(LIBTESTER_BOLDLINE);
-	TPRINT("Tests Summary:\n");
-	TPRINT(LIBTESTER_LINE);
-	LIBTESTER_COLOR(LIBTESTER_RESET);
-	TPRINT("Total tests = (%d)\n", _evaluated_tests_count);
+	lt_bgprint(LIBTESTER_BOLDLINE "Tests Summary:\n" LIBTESTER_LINE);
 
 	for (i = 0; i < _evaluated_tests_count; i++) {
 		if (_test_statuses[i] == 0) {
-			LIBTESTER_COLOR(LIBTESTER_GREEN);
-			TPRINT("\t [%d]  %s\n", i, _test_names[i]);
+			lt_okprint("\t[%d]  %s\n", i, _test_names[i]);
 		} else {
-			LIBTESTER_COLOR(LIBTESTER_RED);
-			TPRINT("\t [%d]  %s\n", i, _test_names[i]);
+			lt_errprint("\t[%d]  %s\n", i, _test_names[i]);
             n_failed++;
 		}
 	}
-	LIBTESTER_COLOR(LIBTESTER_DEFAULT);
-	TPRINT(LIBTESTER_BOLDLINE);
-	TPRINT(LIBTESTER_BOLDLINE);
-	LIBTESTER_COLOR(LIBTESTER_RESET);
+    lt_bgprint(LIBTESTER_BOLDLINE);
 
     if (n_failed > 0) {
-        LIBTESTER_COLOR(LIBTESTER_RED);
-        TPRINT("FAILED %d UNIT-TESTS.\n", n_failed);
-        LIBTESTER_COLOR(LIBTESTER_RESET);
+        lt_errprint("FAILED %d UNIT-TESTS OUT OF %d\n" , n_failed, _evaluated_tests_count);
         return -1;
     }
-    LIBTESTER_COLOR(LIBTESTER_GREEN);
-    TPRINT("ALL UNIT-TESTS PASSED.\n");
-    LIBTESTER_COLOR(LIBTESTER_RESET);
+    lt_okprint("PASSED ALL %d UNIT-TESTS.\n", _evaluated_tests_count);
     return 0;
 }
-
-#define TEST_END() return test_summary()
-
+    
 void
 tl_rand_seed(uint32_t _seed)
 /**

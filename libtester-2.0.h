@@ -49,18 +49,18 @@ extern "C" {
    =============================================================================*/
 
 #define TEST_IF(_EXPR)                                                         \
-	_LIBTESTER_TEST_FUNCTION(!(_EXPR), #_EXPR, __LINE__, NULL)
+	_lt_test_call(!(_EXPR), #_EXPR, __LINE__, NULL)
 
 #define TESTM_IF(_EXPR, _MSG)                                                  \
-	_LIBTESTER_TEST_FUNCTION(!(_EXPR), #_EXPR, __LINE__, _MSG)
+	_lt_test_call(!(_EXPR), #_EXPR, __LINE__, _MSG)
 
 #define TEST_UNIT(FUNCTION)                                                     \
-	_libtester_pre_unit_call(__FILE__, #FUNCTION);                        \
+	_lt_pre_unit_call(__FILE__, #FUNCTION);                        \
 	FUNCTION;                                                                  \
-	_libtester_post_unit_call(#FUNCTION);                                              \
+	_lt_post_unit_call(#FUNCTION);                                              \
 
-#define LIBTESTER_IS_MEMALIGNED(POINTER, BYTE_COUNT) \
-	( (((uintptr_t)(const void*)(POINTER)) & (BYTE_COUNT-1)) == 0)
+#define LT_IS_MEMALIGNED(POINTER, BYTE_COUNT) \
+	( (((uintptr_t)(const void*)(POINTER)) & (BYTE_COUNT-1)) == 0 )
     
 #ifdef LIBTESTER_NO_COLOR
 #define LT_RED
@@ -82,20 +82,20 @@ void _lt_printf(char* fmt, ...);
 #define lt_errprint(msg, ...) _lt_printf(LT_RED     msg LT_RESET, ##__VA_ARGS__)
 #define lt_okprint(msg, ...)  _lt_printf(LT_GREEN   msg LT_RESET, ##__VA_ARGS__)
     
-#define LIBTESTER_FUNCTIONSTRING(FN) (const char*)#FN
+#define LT_STRINGIFY(literal) (const char*)#literal
 
-#define LIBTESTER_LINE                                                                \
+#define LT_LINE                                                                \
 "----------------------------------------------------------------------------\n"
 
-#define LIBTESTER_BOLDLINE                                                            \
+#define LT_BOLDLINE                                                            \
 "============================================================================\n"
 
 /* ==============================================================================
    Global test context
    =============================================================================*/
 
-#ifndef LIBTESTER_MAX_TESTS
-#  define LIBTESTER_MAX_TESTS 128
+#ifndef LT_MAX_TESTS
+#  define LT_MAX_TESTS 128
 #endif
     
 typedef struct {
@@ -104,8 +104,8 @@ typedef struct {
 }lt_timer;
 
 struct {
-    char* test_names[LIBTESTER_MAX_TESTS];
-    char test_statuses[LIBTESTER_MAX_TESTS];
+    char* test_names[LT_MAX_TESTS];
+    char test_statuses[LT_MAX_TESTS];
     int evaluated_tests_count;
     int curr_test_errors;
     int total_test_errors;
@@ -114,7 +114,9 @@ struct {
     lt_timer timer;
 }lt_context;
  
-    
+/**
+ * @brief Shift input arguments of main
+ */
 void
 ltargs_shift(int* _argc, char*** _argv) {
     if (_argc == NULL || _argv == NULL)
@@ -123,6 +125,14 @@ ltargs_shift(int* _argc, char*** _argv) {
     *_argc--;
 }
 
+ /**
+ * @brief Begin unit test context
+ *
+ * Parses optional arguments:
+ *  -h             print help message
+ *  -t <target>    set logging file target
+ * 
+ */
 int
 ltcontext_begin(int _argc, char** _argv) {
     lt_context.evaluated_tests_count = 0;
@@ -132,7 +142,12 @@ ltcontext_begin(int _argc, char** _argv) {
     lt_context.filetarget = NULL;
     lt_context.timer = (lt_timer) {0, 0};
 }
-   
+
+ /**
+ * @brief End unit test context
+ *
+ * Ends the unit test context and closes optional filetarget.
+ */
 int
 ltcontext_end(void)
 /**
@@ -141,7 +156,7 @@ ltcontext_end(void)
 {
 	int i;
     int n_failed = 0;
-	lt_bgprint(LIBTESTER_BOLDLINE "Tests Summary:\n" LIBTESTER_LINE);
+	lt_bgprint(LT_BOLDLINE "Tests Summary:\n" LT_LINE);
 
 	for (i = 0; i < lt_context.evaluated_tests_count; i++) {
 		if (lt_context.test_statuses[i] == 0) {
@@ -151,7 +166,7 @@ ltcontext_end(void)
             n_failed++;
 		}
 	}
-    lt_bgprint(LIBTESTER_BOLDLINE);
+    lt_bgprint(LT_BOLDLINE);
 
     if (n_failed > 0) {
         lt_errprint("FAILED %d UNIT-TESTS OUT OF %d\n",
@@ -163,6 +178,14 @@ ltcontext_end(void)
     return 0;
 }
 
+/**
+ * @brief Default printing function
+ *
+ * @arg Formatting string
+ * @arg [variadic] arguments
+ *
+ * prints to stdout, and optionally to filetarget if specified in "lt_context"
+ */
 void _lt_printf(char* fmt, ...) {
     va_list termlist;
     va_list filelist;
@@ -203,17 +226,17 @@ lt_timer_reset(lt_timer* _t)
 	_t->start = 0;
 }
 
-char
-_LIBTESTER_TEST_FUNCTION(char _result, const char* _expr_str, int _line, const char* _msg)
 /**
- * _LIBTESTER_TEST_FUNCTION() - Test expression for pass/fail 
- * @arg1: Expression result
- * @arg2: Expression string
- * @arg3: Line number
- * @arg4: External message for test
+ * @brief Test expression for pass/fail 
+ * @arg1 Expression result
+ * @arg2 Expression string
+ * @arg3 Line number
+ * @arg4 External message for test
  *
  * Tests function expression.
  */
+char
+_lt_test_call(char _result, const char* _expr_str, int _line, const char* _msg)
 {
 	char* msg;
     if (_msg == NULL) msg = (char*)"";
@@ -230,44 +253,46 @@ _LIBTESTER_TEST_FUNCTION(char _result, const char* _expr_str, int _line, const c
     return _result;
 }
 
-void
-_libtester_pre_unit_call(const char* _file_name, const char* _test_name)
 /**
- * _libtester_pre_unit_call()- Print status before unit-test.
- * @arg1: File name
- * @arg2: Test function name
+ * @brief Print status before unit-test.
+ * @arg File name
+ * @arg Test function name
  *
  * Prints:
  * - Visually eye-catching start of test section
  * - test file name
  * - function to test & its line number
  */
+void
+_lt_pre_unit_call(const char* _file_name, const char* _test_name)
 {
 	lt_context.curr_test_errors = 0;                     
 	lt_context.total_test_errors = 0;                           
 
-	lt_bgprint(LIBTESTER_BOLDLINE);
+	lt_bgprint(LT_BOLDLINE);
 	lt_bgprint("[ TEST %d ]  File:", lt_context.evaluated_tests_count);
 	lt_print(" %s\n", _file_name);
-	lt_bgprint(LIBTESTER_BOLDLINE);                                      
+	lt_bgprint(LT_BOLDLINE);                                      
 
 	lt_timer_reset(&lt_context.timer);
 	lt_timer_start(&lt_context.timer);
 }
 
-void
-_libtester_post_unit_call(const char* _test_name)
 /**
- * _libtester_post_unit_call() - Print status after unit-test.
+ * @brief Print status after unit-test.
+ *
+ * @arg Test function name
  *
  * Prints:
  * - Visually eye-catching passed/fail
  * - execution time
  * - outcome summation of tests for given function
  */
+void
+_lt_post_unit_call(const char* _test_name)
 {
 	lt_timer_stop(&lt_context.timer);
-	lt_bgprint(LIBTESTER_LINE);                                      
+	lt_bgprint(LT_LINE);                                      
 	lt_context.test_names[lt_context.evaluated_tests_count] = (char*)_test_name;
     
 	if (lt_context.curr_test_errors == 0) {
@@ -277,7 +302,7 @@ _libtester_post_unit_call(const char* _test_name)
                    lt_context.curr_test_errors,
                    lt_context.total_test_errors,
                    lt_context.timer.elapsed_sec);
-        lt_bgprint(LIBTESTER_BOLDLINE);
+        lt_bgprint(LT_BOLDLINE);
 	}
 	else {
 		lt_context.test_statuses[lt_context.evaluated_tests_count] = 1;
@@ -286,38 +311,28 @@ _libtester_post_unit_call(const char* _test_name)
                     lt_context.curr_test_errors,
                     lt_context.total_test_errors,
                     lt_context.timer.elapsed_sec);
-        lt_bgprint(LIBTESTER_BOLDLINE);
+        lt_bgprint(LT_BOLDLINE);
 	}
 	lt_context.evaluated_tests_count++;
     lt_print("\n");
 }
-   
-void
-lt_rand_seed(uint32_t _seed)
-/**
- * lt_rand_seed() - Set seed for random functions.
- * @arg1: the seed used to generate random value.
- */
-{
-	lt_context.randseed = _seed;
-}
 
-uint32_t
-lt_rand_uint(void)
-/**
- * lt_rand_uint() - generate seeded random uint32.
- * @arg1: the seed used to generate random value.
+ /**
+ * @brief generate seeded random uint32.
+ * @arg the seed used to generate random value.
  *
  * Generate psuedo-random unsigned integer of 32 bit.
  * seed value is incremented after use.
  *
- * Return: generated number.
+ * @return generated number.
  */
+uint32_t
+lt_rand_uint(void)
 {
-	static const uint32_t mangle_1     = 0x3D73;
-	static const uint32_t mangle_2     = 0xC0AE5;
-	static const uint32_t mangle_3     = 0x5208DD0D;
-	static const uint32_t mangle_shift = 13;
+	const uint32_t mangle_1     = 0x3D73;
+	const uint32_t mangle_2     = 0xC0AE5;
+	const uint32_t mangle_3     = 0x5208DD0D;
+	const uint32_t mangle_shift = 13;
 	uint32_t n;
 	n = (lt_context.randseed << mangle_shift) ^ lt_context.randseed;
 	n *= n * mangle_1;
@@ -328,34 +343,34 @@ lt_rand_uint(void)
 	return n;
 }
 
-uint8_t
-lt_rand_bool(void)
 /**
- * lt_rand_uint() - generate seeded random bool (0/1).
- * @arg1: the seed used to generate random value.
+ * @brief generate seeded random bool (0/1).
+ * @arg1 the seed used to generate random value.
  *
  * Generate psuedo-random boolean (0/1).
  * Effectively returns even/odd of lt_rand_uint().
  *
- * Return: generated number.
+ * @return generated number.
  */
+uint8_t
+lt_rand_bool(void)
 {
 	return (lt_rand_uint() & 1);
 }
 
-uint32_t
-lt_rand_ubetween(uint32_t _min, uint32_t _max)
 /**
- * lt_rand_ubetween() - generate seeded random between specified min/max.
- * @arg1: the seed used to generate random value.
- * @arg2: minimum generated value.
- * @arg3: maximum generated value.
+ * @brief generate seeded random between specified min/max.
+ * @arg1 the seed used to generate random value.
+ * @arg2 minimum generated value.
+ * @arg3 maximum generated value.
  *
  * Generate psuedo-random unsigned integer 32 bit, generated number is modified
  * to fit between specified max/min).
  *
- * Return: generated number.
+ * @return generated number.
  */
+uint32_t
+lt_rand_ubetween(uint32_t _min, uint32_t _max)
 {
 	return ((lt_rand_uint() % (_max - _min + 1)) + _min);
 }

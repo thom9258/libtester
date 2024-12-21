@@ -86,7 +86,7 @@ extern "C" {
 #endif /*LIBTESTER_NO_COLOR*/
 
 void _lt_printf(const char* color, const char* fmt, ...);
-#define lt_print(msg, ...)    _lt_printf(NULL,       (const char*)msg, ##__VA_ARGS__)
+#define lt_print(msg, ...)    _lt_printf(NULL,                    (const char*)msg, ##__VA_ARGS__)
 #define lt_bgprint(msg, ...)  _lt_printf((const char*)LT_DEFAULT, (const char*)msg, ##__VA_ARGS__)
 #define lt_errprint(msg, ...) _lt_printf((const char*)LT_RED,     (const char*)msg, ##__VA_ARGS__)
 #define lt_okprint(msg, ...)  _lt_printf((const char*)LT_GREEN,   (const char*)msg, ##__VA_ARGS__)
@@ -98,7 +98,7 @@ void _lt_printf(const char* color, const char* fmt, ...);
 "============================================================================\n"
 
 #ifndef LT_MAX_TESTS
-#  define LT_MAX_TESTS 128
+#  define LT_MAX_TESTS 1080
 #endif
     
 typedef struct {
@@ -163,7 +163,7 @@ ltcontext_begin(int _argc, char** _argv) {
         LT_SHIFTARGS(_argc, _argv);
     }
 }
-
+	
  /**
  * @brief End unit test context
  *
@@ -347,6 +347,16 @@ _lt_post_unit_call(const char* _test_name)
 	}
 	lt_context.evaluated_tests_count++;
     lt_print("\n");
+}
+
+ /**
+ * @brief Seed the randomizer with a specified value.
+ * @arg the seed used to set.
+ */
+void
+ltcontext_set_seed(const uint32_t seed)
+{
+    lt_context.randseed = seed;
 }
 
  /**

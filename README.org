@@ -1,1 +1,115 @@
-This is a port of the initial implementation "testlib.h" found [[https://github.com/thom9258/The-Spell-Tome/tree/master/Utilities/testlib][here]].
+* Libtester
+A tiny and simple testing library written in c99.
+
+** How to Use
+
+
+#+begin_src c
+#include <libtester/libtester.h>
+
+void test_plus()
+{
+	TEST(2 + 2 == 4);
+	TESTM(5 + 5 != 8, "Hopefully 5+5 is not 8 on this machine..");
+}
+
+int main(int argc, char** argv)
+{
+    ltcontext_begin(argc, argv);
+
+    TEST_UNIT(test_plus());
+    ltcontext_end();
+	return 0;
+}
+#+end_src
+
+** Additional Features
+
+*** Specifying File Logging Destination
+	
+When running the resulting test program, specify '-f' or '--file' followed by a filename, to store a copy of the test output in that file.
+
+*** Timers
+	
+a timer implementation is included so that benchmarking can be made. The interface for timers:
+
+#+begin_src c 
+typedef struct {
+	time_t start;
+	double elapsed_sec;
+}lt_timer;
+
+void
+lt_timer_start(lt_timer* _t);
+
+void
+lt_timer_stop(lt_timer* _t);
+
+void
+lt_timer_reset(lt_timer* _t);
+#+end_src
+
+*** Randomization
+	
+Randomness can be added to testing, the randomizer is implemented as a globally-seeded randomization interface that consistently randomizes each time it is used for consistent testing across program runs.
+The interface for randomization consists of setting the global seed, and functions that generate a random value and changes the seed for the next generation:
+#+begin_src c
+void
+ltcontext_set_seed(const uint32_t seed);
+
+uint32_t
+lt_rand_uint(void);
+
+uint8_t
+lt_rand_bool(void);
+
+uint32_t
+lt_rand_ubetween(uint32_t _min, uint32_t _max);
+#+end_src
+
+*** Minor Testing Features
+
+Smaller utility functions are also embedded directly into the testing framework:
+
+To test if a pointer is alligned to a specified offset in memory:
+#+begin_src c
+LT_IS_MEMALIGNED(POINTER, BYTE_COUNT)
+#+end_src 
+
+Colorized printing can also be utilized using the following:
+#+begin_src c
+void _lt_printf(const char* color, const char* fmt, ...);
+#define lt_print(msg, ...)
+#define lt_bgprint(msg, ...)
+#define lt_errprint(msg, ...)
+#define lt_okprint(msg, ...)
+#+end_src 
+
+Where different print messages have specified colors attached to them. To disable colors, specify before include:
+#+begin_src c
+#define LIBTESTER_NO_COLOR
+#+end_src 
+
+*** Additional Notes
+	
+To increase the amount of tests that the framework should expect, modify
+#+begin_src c
+#define LT_MAX_TESTS 5000
+#+end_src 
+
+
+** CMake Usage
+
+#+begin_src cmake
+include(FetchContent)
+message(STATUS "Including Libtester")
+FetchContent_Declare(libtester
+  GIT_REPOSITORY git@github.com:thom9258/libtester.git
+  GIT_TAG main
+  GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(libtester)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE libtester)
+#+end_src

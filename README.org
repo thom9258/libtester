@@ -23,6 +23,27 @@ int main(int argc, char** argv)
 }
 #+end_src
 
+Running this test program would result in the following output:
+#+begin_src txt
+============================================================================
+[ TEST 0 ] File:  /home/th/Projects/libtester/test-2.0/test.cpp
+Name:  test_plus()
+============================================================================
+[test L62] PASSED ( 2 + 2 == 4 )  
+[test L63] PASSED ( 5 + 5 != 8 )  Hopefully 5+5 is not 8 on this machine..
+----------------------------------------------------------------------------
+>>>[[ TEST 0 PASSED ]]  ->  (errors=0/2, time=0.000025s)
+============================================================================
+
+============================================================================
+Tests Summary:
+----------------------------------------------------------------------------
+	[0] OK    test_plus()
+============================================================================
+PASSED ALL 1 UNIT-TESTS.
+#+end_src
+
+
 ** Additional Features
 
 *** Specifying File Logging Destination

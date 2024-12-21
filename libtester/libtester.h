@@ -57,26 +57,26 @@ extern "C" {
     
 #define LIBTESTER_VERSION "2.1"
     
-#define TEST(_EXPR)                                                         \
+#define TEST(_EXPR) \
 	_lt_test_call(!(_EXPR), #_EXPR, __LINE__, NULL)
 
-#define TESTM(_EXPR, _MSG)                                                  \
+#define TESTM(_EXPR, _MSG) \
 	_lt_test_call(!(_EXPR), #_EXPR, __LINE__, _MSG)
 
-#define TEST_UNIT(FUNCTION)                                                     \
-	_lt_pre_unit_call(__FILE__, #FUNCTION);                        \
+#define TEST_UNIT(FUNCTION)                                                    \
+	_lt_pre_unit_call(__FILE__, #FUNCTION);                                    \
 	FUNCTION;                                                                  \
-	_lt_post_unit_call(#FUNCTION);                                              \
+	_lt_post_unit_call(#FUNCTION);
 
 #define LT_IS_MEMALIGNED(POINTER, BYTE_COUNT) \
 	( (((uintptr_t)(const void*)(POINTER)) & (BYTE_COUNT-1)) == 0 )
     
 #ifdef LIBTESTER_NO_COLOR
-#define LT_RED
-#define LT_GREEN
-#define LT_BLUE
-#define LT_RESET
-#define LT_DEFAULT
+#define LT_RED ""
+#define LT_GREEN ""
+#define LT_BLUE ""
+#define LT_RESET ""
+#define LT_DEFAULT ""
 #else /*NOT LIBTESTER_NO_COLOR*/
 #define LT_RED     "\033[0;31m"
 #define LT_GREEN   "\033[0;32m"

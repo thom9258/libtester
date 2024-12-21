@@ -14,5 +14,5 @@ set(CMAKE_CXX_STANDARD 17)
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(${PROJECT_NAME} test.c)
+add_executable(${PROJECT_NAME} test.cpp)
 target_link_libraries(${PROJECT_NAME})
